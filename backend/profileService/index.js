@@ -43,10 +43,10 @@ app.post('/addUser', async (req,res)=>{
             .status(400)
             .json({ error: "Both name and age are required." });
         }
-        const existingUser = await User.find({name: name});
-        if (!existingUser) {
-          return res.status(404).json({ error: "User not found." });
-        }
+       // const existingUser = await User.find({name: name});
+        //if (!existingUser) {
+          //return res.status(404).json({ error: "User not found." });
+        //}
         const newuser = new User({
           name,
           age,
