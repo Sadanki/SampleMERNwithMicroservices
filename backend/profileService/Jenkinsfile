@@ -3,30 +3,30 @@ pipeline {
 
   environment {
     AWS_REGION = "ap-south-1"
-    ECR_REPO = "975050024946.dkr.ecr.ap-south-1.amazonaws.com/mern-hello-service" // Change for profile-service
+    ECR_REPO = "975050024946.dkr.ecr.ap-south-1.amazonaws.com/mern-profile-service"
     IMAGE_TAG = "latest"
   }
 
   stages {
     stage('Checkout') {
       steps {
-        git credentialsId: 'github-creds-id', url: 'https://github.com/Sadanki/SampleMERNwithMicroservices.git'
+        git credentialsId: 'github-creds-id',
+            url: 'https://github.com/Sadanki/SampleMERNwithMicroservices.git',
+            branch: 'main'
       }
     }
 
     stage('Login to ECR') {
       steps {
-        script {
-          sh '''
-            aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
-          '''
-        }
+        sh '''
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
+        '''
       }
     }
 
     stage('Build Docker Image') {
       steps {
-        dir('backend/profileService') { 
+        dir('backend/profileService') {
           sh 'docker build -t $ECR_REPO:$IMAGE_TAG .'
         }
       }

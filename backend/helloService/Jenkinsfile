@@ -1,34 +1,37 @@
 pipeline {
-    agent any
+  agent any
 
-    environment {
-        IMAGE_NAME = "mern-hello-service"
-        ECR_REGISTRY = "975050024946.dkr.ecr.ap-south-1.amazonaws.com"
+  environment {
+    IMAGE_NAME = "mern-hello-service"
+    ECR_REGISTRY = "975050024946.dkr.ecr.ap-south-1.amazonaws.com"
+    IMAGE_TAG = "latest"
+  }
+
+  stages {
+    stage('Checkout Code') {
+      steps {
+        git credentialsId: 'github-creds-id',
+            url: 'https://github.com/Sadanki/SampleMERNwithMicroservices.git',
+            branch: 'main'
+      }
     }
 
-    stages {
-        stage('Checkout Code') {
-            steps {
-                git url: 'https://github.com/Sadanki/SampleMERNwithMicroservices.git', branch: 'main'
-            }
+    stage('Build Docker Image') {
+      steps {
+        dir('backend/helloService') {
+          sh "docker build -t $IMAGE_NAME:$IMAGE_TAG ."
         }
-
-        stage('Build Docker Image') {
-            steps {
-                dir('backend/helloService') {
-                    sh "docker build -t $IMAGE_NAME ."
-                }
-            }
-        }
-
-        stage('Tag & Push to ECR') {
-            steps {
-                script {
-                    sh "aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin $ECR_REGISTRY"
-                    sh "docker tag $IMAGE_NAME $ECR_REGISTRY/$IMAGE_NAME"
-                    sh "docker push $ECR_REGISTRY/$IMAGE_NAME"
-                }
-            }
-        }
+      }
     }
+
+    stage('Tag & Push to ECR') {
+      steps {
+        sh '''
+          aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin $ECR_REGISTRY
+          docker tag $IMAGE_NAME:$IMAGE_TAG $ECR_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
+        '''
+      }
+    }
+  }
 }
