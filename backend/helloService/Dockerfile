@@ -1,13 +1,20 @@
-FROM node:18
+FROM node:16
 
-WORKDIR /app
+# Create app directory
+WORKDIR /usr/src/app
 
+# Copy and install app dependencies
 COPY package*.json ./
-
 RUN npm install
 
+# Copy app source code
 COPY . .
 
-EXPOSE 6000
+# Create .env file
+RUN echo "PORT=3000" > .env
 
-CMD ["npm", "start"]
+# Expose port
+EXPOSE 3000
+
+# Start the app
+CMD [ "node", "index.js" ]
