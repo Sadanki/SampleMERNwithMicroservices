@@ -5,9 +5,10 @@ var cors = require('cors')
 
 
 const app = express();
-const port = process.env.PORT;
+const port = process.env.PORT || 5000;
 
-mongoose.connect(process.env.MONGO_URL, { useNewUrlParser: true, useUnifiedTopology: true });
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+
 
 app.use(express.json());
 app.use(cors())
