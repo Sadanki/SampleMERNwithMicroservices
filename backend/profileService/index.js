@@ -5,10 +5,9 @@ var cors = require('cors')
 
 
 const app = express();
-const port = process.env.PORT || 3002;
+const port = process.env.PORT;
 
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
-
+mongoose.connect(process.env.MONGO_URL, { useNewUrlParser: true, useUnifiedTopology: true });
 
 app.use(express.json());
 app.use(cors())
@@ -44,10 +43,10 @@ app.post('/addUser', async (req,res)=>{
             .status(400)
             .json({ error: "Both name and age are required." });
         }
-       // const existingUser = await User.find({name: name});
-        //if (!existingUser) {
-          //return res.status(404).json({ error: "User not found." });
-        //}
+        const existingUser = await User.find({name: name});
+        if (!existingUser) {
+          return res.status(404).json({ error: "User not found." });
+        }
         const newuser = new User({
           name,
           age,
@@ -76,6 +75,6 @@ app.get('/fetchUser', async (req,res)=>{
       }
 })
 
-app.listen(process.env.PORT, '0.0.0.0', () => {
+app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });

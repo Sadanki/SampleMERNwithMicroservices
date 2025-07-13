@@ -7,7 +7,7 @@ function Home() {
 
   useEffect(() => {
     axios
-      .get("http://v-hello-alb-1186104363.ap-south-1.elb.amazonaws.com/")
+      .get("http://localhost:3001/")
       .then((response) => {
         setMessage(response.data.msg);
       })
@@ -16,7 +16,7 @@ function Home() {
 
   useEffect(() => {
     axios
-      .get("http://v-b-alb-20250713001959-519739484.ap-south-1.elb.amazonaws.com/fetchUser")
+      .get("http://localhost:3002/fetchUser")
       .then((response) => {
         setProfile(response.data);
         
