@@ -1,45 +1,67 @@
 pipeline {
     agent any
+
     environment {
         AWS_ACCOUNT = '975050024946'
         AWS_REGION = 'ap-south-1'
         ECR_REGISTRY = "${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        DOCKER_BUILDKIT = '1'
     }
+
     stages {
-        // Build and push all services
+        stage('ECR Login') {
+            steps {
+                withCredentials([[ 
+                    $class: 'AmazonWebServicesCredentialsBinding', 
+                    credentialsId: 'ecr-credentials', 
+                    accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
+                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                ]]) {
+                    sh """
+                    aws configure set aws_access_key_id ${AWS_ACCESS_KEY_ID}
+                    aws configure set aws_secret_access_key ${AWS_SECRET_ACCESS_KEY}
+                    aws configure set region ${AWS_REGION}
+                    aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+                    """
+                }
+            }
+        }
+
         stage('Build & Push') {
             parallel {
                 stage('Frontend') {
                     steps {
                         dir('frontend') {
                             script {
-                                docker.build("mern-frontend", ".")
-                                docker.withRegistry("https://${ECR_REGISTRY}", 'ecr:ap-south-1') {
-                                    docker.image("mern-frontend").push("latest")
+                                docker.build("${ECR_REGISTRY}/mern-frontend:latest", "--platform linux/amd64 .")
+                                withDockerRegistry([credentialsId: 'ecr-credentials', url: "https://${ECR_REGISTRY}"]) {
+                                    docker.image("${ECR_REGISTRY}/mern-frontend:latest").push()
                                 }
                             }
                         }
                     }
                 }
+
                 stage('Hello-Service') {
                     steps {
                         dir('backend/helloService') {
                             script {
-                                docker.build("mern-hello-service", ".")
-                                docker.withRegistry("https://${ECR_REGISTRY}", 'ecr:ap-south-1') {
-                                    docker.image("mern-hello-service").push("latest")
+                                docker.build("${ECR_REGISTRY}/mern-hello-service:latest", "--platform linux/amd64 .")
+                                withDockerRegistry([credentialsId: 'ecr-credentials', url: "https://${ECR_REGISTRY}"]) {
+                                    docker.image("${ECR_REGISTRY}/mern-hello-service:latest").push()
                                 }
                             }
                         }
                     }
                 }
+
                 stage('Profile-Service') {
                     steps {
                         dir('backend/profileService') {
                             script {
-                                docker.build("mern-profile-service", ".")
-                                docker.withRegistry("https://${ECR_REGISTRY}", 'ecr:ap-south-1') {
-                                    docker.image("mern-profile-service").push("latest")
+                                docker.build("${ECR_REGISTRY}/mern-profile-service:latest", "--platform linux/amd64 .")
+                                withDockerRegistry([credentialsId: 'ecr-credentials', url: "https://${ECR_REGISTRY}"]) {
+                                    docker.image("${ECR_REGISTRY}/mern-profile-service:latest").push()
                                 }
                             }
                         }
@@ -47,20 +69,42 @@ pipeline {
                 }
             }
         }
-        
-        // Deploy (example for ECS)
-        stage('Deploy') {
+
+        stage('Deploy to ECS') {
             steps {
-                script {
+                withCredentials([[ 
+                    $class: 'AmazonWebServicesCredentialsBinding', 
+                    credentialsId: 'ecr-credentials', 
+                    accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
+                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                ]]) {
                     sh """
                     aws ecs update-service \
                         --cluster mern-cluster \
                         --service frontend-service \
                         --force-new-deployment \
                         --region ${AWS_REGION}
+
+                    aws ecs update-service \
+                        --cluster mern-cluster \
+                        --service hello-service \
+                        --force-new-deployment \
+                        --region ${AWS_REGION}
+
+                    aws ecs update-service \
+                        --cluster mern-cluster \
+                        --service profile-service \
+                        --force-new-deployment \
+                        --region ${AWS_REGION}
                     """
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
         }
     }
 }
