@@ -1,20 +1,34 @@
 const express = require('express');
-require('dotenv').config()
-var cors = require('cors')
-
+require('dotenv').config();
+const cors = require('cors');
 
 const app = express();
-app.use(cors())
+const port = process.env.PORT || 3000; // Default port if not specified
 
-
+app.use(cors());
 app.use(express.json());
-app.get('/', (req,res)=>{
-    res.send({msg: 'Hello World'})
-})
-app.get('/health', (req,res)=>{
-    res.send({status: 'OK'})
-})
 
-app.listen(process.env.PORT, () => {
-  console.log(`Server is running on port ${process.env.PORT}`);
+// Routes
+app.get('/', (req, res) => {
+  res.json({ msg: 'Hello World' });
+});
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK' });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+  console.log('Shutting down gracefully');
+  process.exit(0);
+});
+
+app.listen(port, () => {
+  console.log(`Hello service running on port ${port}`);
 });

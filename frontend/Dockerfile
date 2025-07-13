@@ -1,16 +1,11 @@
-FROM node:16
-
-# Working directory be app
+FROM node:16 as build
 WORKDIR /usr/src/app
-
 COPY package*.json ./
-
-###  Installing dependencies
 RUN npm install
-
-# copy local files to app folder
 COPY . .
+RUN npm run build
 
-EXPOSE 3000
-
-CMD ["npm","start"]
+FROM nginx:alpine
+COPY --from=build /usr/src/app/build /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

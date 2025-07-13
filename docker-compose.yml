@@ -1,28 +1,87 @@
 version: '3.8'
 
 services:
-  backend:
-    build: ./backend
-    ports:
-      - "5000:5000"
-    environment:
-      - NODE_ENV=development
-    depends_on:
-      - mongodb
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
-
   mongodb:
     image: mongo:latest
+    container_name: mongo-db
     ports:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+      MONGO_INITDB_DATABASE: profileDB
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mern-network
+
+  hello-service:
+    build: 
+      context: ./backend/helloService
+      dockerfile: Dockerfile
+    container_name: hello-service
+    ports:
+      - "3001:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - mern-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  profile-service:
+    build: 
+      context: ./backend/profileService
+      dockerfile: Dockerfile
+    container_name: profile-service
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - NODE_ENV=production
+      - MONGO_URL=mongodb://root:example@mongodb:27017/profileDB?authSource=admin
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - mern-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mern-frontend
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
+    networks:
+      - mern-network
+    depends_on:
+      - hello-service
+      - profile-service
 
 volumes:
   mongo-data:
+    driver: local
+
+networks:
+  mern-network:
+    driver: bridge

@@ -1,0 +1,66 @@
+pipeline {
+    agent any
+    environment {
+        AWS_ACCOUNT = '975050024946'
+        AWS_REGION = 'ap-south-1'
+        ECR_REGISTRY = "${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+    }
+    stages {
+        // Build and push all services
+        stage('Build & Push') {
+            parallel {
+                stage('Frontend') {
+                    steps {
+                        dir('frontend') {
+                            script {
+                                docker.build("mern-frontend", ".")
+                                docker.withRegistry("https://${ECR_REGISTRY}", 'ecr:ap-south-1') {
+                                    docker.image("mern-frontend").push("latest")
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('Hello-Service') {
+                    steps {
+                        dir('backend/helloService') {
+                            script {
+                                docker.build("mern-hello-service", ".")
+                                docker.withRegistry("https://${ECR_REGISTRY}", 'ecr:ap-south-1') {
+                                    docker.image("mern-hello-service").push("latest")
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('Profile-Service') {
+                    steps {
+                        dir('backend/profileService') {
+                            script {
+                                docker.build("mern-profile-service", ".")
+                                docker.withRegistry("https://${ECR_REGISTRY}", 'ecr:ap-south-1') {
+                                    docker.image("mern-profile-service").push("latest")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Deploy (example for ECS)
+        stage('Deploy') {
+            steps {
+                script {
+                    sh """
+                    aws ecs update-service \
+                        --cluster mern-cluster \
+                        --service frontend-service \
+                        --force-new-deployment \
+                        --region ${AWS_REGION}
+                    """
+                }
+            }
+        }
+    }
+}
