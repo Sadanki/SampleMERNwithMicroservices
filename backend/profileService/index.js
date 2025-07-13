@@ -5,7 +5,7 @@ var cors = require('cors')
 
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 3002;
 
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
 
@@ -76,6 +76,6 @@ app.get('/fetchUser', async (req,res)=>{
       }
 })
 
-app.listen(port, () => {
+app.listen(process.env.PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${port}`);
 });

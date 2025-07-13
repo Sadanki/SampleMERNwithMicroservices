@@ -1,49 +1,39 @@
 import boto3
+import json
+
+# Load VPC ID from saved file
+with open("vpc_outputs.json") as f:
+    data = json.load(f)
+vpc_id = data['vpc_id']
 
 ec2 = boto3.client('ec2')
 
-VPC_ID = 'vpc-074a3dcc782c93eb0'  # Use your actual VPC ID
+try:
+    response = ec2.create_security_group(
+        GroupName='vignesh-backend-sg',
+        Description='Allow ports for backend',
+        VpcId=vpc_id
+    )
+    sg_id = response['GroupId']
+    print(f"✅ Security Group Created: {sg_id}")
 
-def create_security_group():
-    try:
-        response = ec2.create_security_group(
-            GroupName='mern-backend-sg',
-            Description='Allow SSH, HTTP, and App port',
-            VpcId=VPC_ID
-        )
-        sg_id = response['GroupId']
-        print(f"Security Group Created: {sg_id}")
-
-        # Add inbound rules
-        ec2.authorize_security_group_ingress(
-            GroupId=sg_id,
-            IpPermissions=[
-                {
-                    'IpProtocol': 'tcp',
-                    'FromPort': 22,
-                    'ToPort': 22,
-                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
-                },
-                {
-                    'IpProtocol': 'tcp',
-                    'FromPort': 80,
-                    'ToPort': 80,
-                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
-                },
-                {
-                    'IpProtocol': 'tcp',
-                    'FromPort': 3001,  # Replace with your app port if different
-                    'ToPort': 3001,
-                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
-                }
-            ]
-        )
-
-        print("Inbound rules added.")
-        return sg_id
-
-    except Exception as e:
-        print("Error creating security group:", e)
-
-if __name__ == "__main__":
-    create_security_group()
+    ec2.authorize_security_group_ingress(
+        GroupId=sg_id,
+        IpPermissions=[
+            {
+                'IpProtocol': 'tcp',
+                'FromPort': 22,
+                'ToPort': 22,
+                'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
+            },
+            {
+                'IpProtocol': 'tcp',
+                'FromPort': 3001,
+                'ToPort': 3001,
+                'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
+            }
+        ]
+    )
+    print("✅ Inbound rules added.")
+except Exception as e:
+    print(f"❌ Error creating security group: {e}")

@@ -2,7 +2,8 @@ import boto3
 
 ec2 = boto3.client('ec2')
 
-vpc_id = 'vpc-074a3dcc782c93eb0'
+vpc_id = 'vpc-058a7bfbb04cda947'
+
 
 def create_public_subnet(cidr_block, az, name):
     response = ec2.create_subnet(
