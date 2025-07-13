@@ -5,30 +5,36 @@ pipeline {
         AWS_ACCOUNT = '975050024946'
         AWS_REGION = 'ap-south-1'
         ECR_REGISTRY = "${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-        DOCKER_BUILDKIT = '0'
+        DOCKER_BUILDKIT = '0'  // Disables BuildKit to avoid missing buildx errors
     }
 
     stages {
+
         stage('ECR Login') {
             steps {
-                withCredentials([[ 
-                    $class: 'AmazonWebServicesCredentialsBinding', 
-                    credentialsId: 'ecr-credentials', 
-                    accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
-                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                ]]) {
-                    sh """
-                    aws configure set aws_access_key_id ${AWS_ACCESS_KEY_ID}
-                    aws configure set aws_secret_access_key ${AWS_SECRET_ACCESS_KEY}
-                    aws configure set region ${AWS_REGION}
-                    aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_REGISTRY}
-                    """
+                withCredentials([
+                    [
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'ecr-credentials',
+                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                    ]
+                ]) {
+                    sh '''
+                        echo "Logging into AWS ECR..."
+                        aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+                        aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+                        aws configure set region $AWS_REGION
+
+                        aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
+                    '''
                 }
             }
         }
 
         stage('Build & Push') {
             parallel {
+
                 stage('Frontend') {
                     steps {
                         dir('frontend') {
@@ -67,36 +73,41 @@ pipeline {
                         }
                     }
                 }
+
             }
         }
 
         stage('Deploy to ECS') {
             steps {
-                withCredentials([[ 
-                    $class: 'AmazonWebServicesCredentialsBinding', 
-                    credentialsId: 'ecr-credentials', 
-                    accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
-                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                ]]) {
-                    sh """
-                    aws ecs update-service \
-                        --cluster mern-cluster \
-                        --service frontend-service \
-                        --force-new-deployment \
-                        --region ${AWS_REGION}
+                withCredentials([
+                    [
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'ecr-credentials',
+                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                    ]
+                ]) {
+                    sh '''
+                        echo "Deploying to ECS..."
 
-                    aws ecs update-service \
-                        --cluster mern-cluster \
-                        --service hello-service \
-                        --force-new-deployment \
-                        --region ${AWS_REGION}
+                        aws ecs update-service \
+                            --cluster mern-cluster \
+                            --service frontend-service \
+                            --force-new-deployment \
+                            --region $AWS_REGION
 
-                    aws ecs update-service \
-                        --cluster mern-cluster \
-                        --service profile-service \
-                        --force-new-deployment \
-                        --region ${AWS_REGION}
-                    """
+                        aws ecs update-service \
+                            --cluster mern-cluster \
+                            --service hello-service \
+                            --force-new-deployment \
+                            --region $AWS_REGION
+
+                        aws ecs update-service \
+                            --cluster mern-cluster \
+                            --service profile-service \
+                            --force-new-deployment \
+                            --region $AWS_REGION
+                    '''
                 }
             }
         }
@@ -104,6 +115,7 @@ pipeline {
 
     post {
         always {
+            echo "Cleaning workspace..."
             cleanWs()
         }
     }
