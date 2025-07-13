@@ -5,11 +5,10 @@ pipeline {
         AWS_ACCOUNT = '975050024946'
         AWS_REGION = 'ap-south-1'
         ECR_REGISTRY = "${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-        DOCKER_BUILDKIT = '0'
+        DOCKER_BUILDKIT = '1' // Changed to 1 to enable BuildKit
     }
 
     stages {
-
         stage('ECR Login') {
             steps {
                 withCredentials([[
@@ -31,15 +30,12 @@ pipeline {
 
         stage('Build & Push') {
             parallel {
-
                 stage('Frontend') {
                     steps {
                         dir('frontend') {
                             script {
                                 docker.build("${ECR_REGISTRY}/mern-frontend:latest", "--platform linux/amd64 .")
-                                withDockerRegistry([credentialsId: 'ecr-docker-credentials', url: "https://${ECR_REGISTRY}"]) {
-                                    docker.image("${ECR_REGISTRY}/mern-frontend:latest").push()
-                                }
+                                sh "docker push ${ECR_REGISTRY}/mern-frontend:latest"
                             }
                         }
                     }
@@ -50,9 +46,7 @@ pipeline {
                         dir('backend/helloService') {
                             script {
                                 docker.build("${ECR_REGISTRY}/mern-hello-service:latest", "--platform linux/amd64 .")
-                                withDockerRegistry([credentialsId: 'ecr-docker-credentials', url: "https://${ECR_REGISTRY}"]) {
-                                    docker.image("${ECR_REGISTRY}/mern-hello-service:latest").push()
-                                }
+                                sh "docker push ${ECR_REGISTRY}/mern-hello-service:latest"
                             }
                         }
                     }
@@ -63,14 +57,11 @@ pipeline {
                         dir('backend/profileService') {
                             script {
                                 docker.build("${ECR_REGISTRY}/mern-profile-service:latest", "--platform linux/amd64 .")
-                                withDockerRegistry([credentialsId: 'ecr-docker-credentials', url: "https://${ECR_REGISTRY}"]) {
-                                    docker.image("${ECR_REGISTRY}/mern-profile-service:latest").push()
-                                }
+                                sh "docker push ${ECR_REGISTRY}/mern-profile-service:latest"
                             }
                         }
                     }
                 }
-
             }
         }
 
@@ -82,27 +73,21 @@ pipeline {
                     accessKeyVariable: 'AWS_ACCESS_KEY_ID',
                     secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
                 ]]) {
-                    sh '''
-                        echo "Deploying to ECS..."
-
-                        aws ecs update-service \
-                            --cluster mern-cluster \
-                            --service frontend-service \
-                            --force-new-deployment \
-                            --region $AWS_REGION
-
-                        aws ecs update-service \
-                            --cluster mern-cluster \
-                            --service hello-service \
-                            --force-new-deployment \
-                            --region $AWS_REGION
-
-                        aws ecs update-service \
-                            --cluster mern-cluster \
-                            --service profile-service \
-                            --force-new-deployment \
-                            --region $AWS_REGION
-                    '''
+                    script {
+                        // Only deploy the existing profile-service
+                        sh """
+                            echo "Deploying profile-service to ECS..."
+                            aws ecs update-service \
+                                --cluster mern-cluster \
+                                --service profile-service \
+                                --force-new-deployment \
+                                --region $AWS_REGION
+                        """
+                        
+                        // Optional: Create other services if needed
+                        // createEcsServiceIfNotExists('frontend-service')
+                        // createEcsServiceIfNotExists('hello-service')
+                    }
                 }
             }
         }
@@ -112,6 +97,12 @@ pipeline {
         always {
             echo "Cleaning workspace..."
             cleanWs()
+        }
+        failure {
+            slackSend(color: 'danger', message: "Pipeline failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}")
+        }
+        success {
+            slackSend(color: 'good', message: "Pipeline succeeded: ${env.JOB_NAME} #${env.BUILD_NUMBER}")
         }
     }
 }
