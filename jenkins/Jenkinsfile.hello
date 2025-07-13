@@ -1,0 +1,33 @@
+pipeline {
+  agent any
+
+  environment {
+    IMAGE_NAME = "hello-service"
+    AWS_ACCOUNT_ID = "975050024946"
+    REGION = "ap-south-1"
+  }
+
+  stages {
+    stage('Checkout Code') {
+      steps {
+        git 'https://github.com/UnpredictablePrashant/SampleMERNwithMicroservices.git'
+      }
+    }
+
+    stage('Build Docker Image') {
+      steps {
+        dir('backend/helloService') {
+          sh 'bash ../../jenkins/scripts/build.sh hello-service'
+        }
+      }
+    }
+
+    stage('Push Docker Image to ECR') {
+      steps {
+        dir('backend/helloService') {
+          sh 'bash ../../jenkins/scripts/push.sh hello-service'
+        }
+      }
+    }
+  }
+}
